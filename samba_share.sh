@@ -2,6 +2,7 @@
 
 # Script για ρύθμιση Samba κοινής χρήσης του /var/www
 # Χρήση: bash setup-samba-www.sh
+# Το script ανιχνεύει αυτόματα την IP του συστήματος
 
 echo "================================"
 echo "🚀 Ρύθμιση Samba για /var/www"
@@ -14,6 +15,19 @@ if [ "$EUID" -ne 0 ]; then
     echo "Χρήση: sudo bash setup-samba-www.sh"
     exit 1
 fi
+
+# Ανίχνευση IP διεύθυνσης
+echo "🔍 Ανίχνευση IP διεύθυνσης..."
+SERVER_IP=$(hostname -I | awk '{print $1}')
+
+if [ -z "$SERVER_IP" ]; then
+    echo "❌ Δεν μπόρεσα να ανιχνεύσω την IP!"
+    echo "Δοκίμασε να χρησιμοποιήσεις το 'ip addr show' για να βρεις την IP σου"
+    exit 1
+fi
+
+echo "✅ IP ανιχνεύθηκε: $SERVER_IP"
+echo ""
 
 # 1. Ενημέρωση συστήματος
 echo "📦 Ενημέρωση καταλόγου πακέτων..."
@@ -87,18 +101,18 @@ echo "✅ ΟΛΟΚΛΗΡΩΘΗΚΕ!"
 echo "================================"
 echo ""
 echo "📍 Πληροφορίες σύνδεσης:"
-echo "   IP: 10.0.20.204"
-echo "   Κοινή χρήση: \\\\10.0.20.204\\www"
+echo "   IP: $SERVER_IP"
+echo "   Κοινή χρήση: \\\\$SERVER_IP\\www"
 echo "   Χρήστης: guest"
 echo ""
 echo "🍎 Για Mac:"
 echo "   Cmd + K στο Finder"
-echo "   smb://10.0.20.204/www"
+echo "   smb://$SERVER_IP/www"
 echo ""
 echo "🪟 Για Windows:"
-echo "   \\\\10.0.20.204\\www"
+echo "   \\\\$SERVER_IP\\www"
 echo ""
 echo "🐧 Για Linux:"
-echo "   smbclient //10.0.20.204/www -U guest"
+echo "   smbclient //$SERVER_IP/www -U guest"
 echo ""
 echo "================================"
