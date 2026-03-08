@@ -29,7 +29,7 @@ echo -e "${BOLD}${BLUE}║        🚀 Auto Web Server Setup - Debian VM        
 echo -e "${BOLD}${BLUE}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-read -p "📦 Όνομα project (π.χ. mywebsite): " PROJECT_NAME
+read -p "📦 Όνομα project (π.χ. mypage): " PROJECT_NAME
 read -p "🔗 GitHub SSH URL: " GITHUB_SSH
 read -p "🏷️  Label για SSH key: " SSH_LABEL
 read -p "🌿 Branch (main ή master): " GIT_BRANCH
