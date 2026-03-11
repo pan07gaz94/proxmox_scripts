@@ -1,302 +1,193 @@
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║                                                                            ║
-║  🚀 DEBIAN VM INSTALLATION - COMPLETE PACKAGE                             ║
-║  Inventory Management System on Proxmox                                    ║
+║  🚀 INVENTORY MANAGEMENT SYSTEM - ONE COMMAND INSTALLATION                ║
+║                                                                            ║
+║  ΜΙΑ ΕΝΤΟΛΉ - ΟΛΟΣ Ο SETUP!                                               ║
 ║                                                                            ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 
-📦 WHAT YOU RECEIVED:
+═══════════════════════════════════════════════════════════════════════════════
 
-Complete Debian VM installation package with scripts for:
-✅ System update
-✅ Node.js v18 installation
-✅ MongoDB installation
-✅ Application setup
-✅ Environment configuration
-✅ Systemd services (auto-start)
-✅ Firewall configuration
+⚡ THE ONE COMMAND:
+
+SSH to your Debian VM and run EXACTLY this:
+
+curl -fsSL https://raw.githubusercontent.com/pan07gaz94/proxmox_scripts/refs/heads/master/install-inventory.sh | sudo bash
+
+That's it! Nothing else needed!
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-🚀 THREE INSTALLATION OPTIONS:
+📋 STEP-BY-STEP:
 
-OPTION 1️⃣ - AUTOMATIC (Recommended)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-bash INSTALL_ALL.sh
-
-⏱️  Time: 10-15 minutes
-✅ Installs everything at once
-✅ Automatic error handling
-✅ Easiest for most users
-
-OPTION 2️⃣ - STEP-BY-STEP (Learning)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Run each script individually:
-
-bash 1_SYSTEM_UPDATE.sh         # Update system
-bash 2_INSTALL_NODEJS.sh        # Install Node.js
-bash 3_INSTALL_MONGODB.sh       # Install MongoDB
-bash 4_INSTALL_APP.sh           # Create app directory
-bash 5_SETUP_ENV.sh             # Install dependencies
-bash 6_SETUP_SERVICES.sh        # Create services
-bash 7_START_SERVICES.sh        # Start services
-bash 8_SETUP_FIREWALL.sh        # Configure firewall
-
-⏱️  Time: 15-20 minutes
-✅ See what each step does
-✅ Better for learning
-✅ Can troubleshoot issues
-
-OPTION 3️⃣ - MANUAL COMMANDS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Copy commands from:
-- DEBIAN_MANUAL_COMMANDS.txt (detailed step by step)
-- QUICK_REFERENCE.txt (quick copy/paste)
-
-⏱️  Time: 20-30 minutes
-✅ Full control over each command
-✅ Better for advanced users
-
-═══════════════════════════════════════════════════════════════════════════════
-
-📋 FILES INCLUDED:
-
-🔹 Scripts (Run these):
-   1_SYSTEM_UPDATE.sh
-   2_INSTALL_NODEJS.sh
-   3_INSTALL_MONGODB.sh
-   4_INSTALL_APP.sh
-   5_SETUP_ENV.sh
-   6_SETUP_SERVICES.sh
-   7_START_SERVICES.sh
-   8_SETUP_FIREWALL.sh
-   INSTALL_ALL.sh              ← Most convenient
-
-🔹 Documentation:
-   DEBIAN_VM_README.md         ← Complete guide (READ THIS!)
-   DEBIAN_MANUAL_COMMANDS.txt  ← Step-by-step commands
-   QUICK_REFERENCE.txt         ← Copy/paste commands
-   START_HERE.txt              ← Initial overview
-   SETUP_GUIDE_EL.md          ← Greek version
-
-🔹 Application:
-   inventory-app/              ← Your complete app
-
-═══════════════════════════════════════════════════════════════════════════════
-
-🎯 QUICK START:
-
-1. Copy files to your Debian VM:
+1. SSH to your Debian 11/12 VM:
    
-   On your computer (Linux/Mac):
-   $ scp -r ~/Downloads/outputs/* user@your-vm-ip:~/
-   
-   Or use WinSCP on Windows
+   ssh user@your-vm-ip
 
-2. SSH into your VM:
+2. Run the one-liner:
    
-   $ ssh user@your-vm-ip
+   curl -fsSL https://raw.githubusercontent.com/pan07gaz94/proxmox_scripts/refs/heads/master/install-inventory.sh | sudo bash
 
-3. Run installation (Option 1):
-   
-   $ cd ~
-   $ bash INSTALL_ALL.sh
-   
-   Or follow DEBIAN_VM_README.md for other options
+3. Wait 15-20 minutes while it:
+   - Updates system
+   - Installs Node.js v18
+   - Installs MongoDB
+   - Downloads app from GitHub
+   - Installs dependencies
+   - Builds frontend
+   - Creates services
+   - Starts everything
 
-4. Wait 10-15 minutes
-
-5. Open browser:
+4. When done, you'll see:
    
+   ✅ INSTALLATION COMPLETE!
+   
+   🌐 OPEN YOUR BROWSER:
    http://your-vm-ip:3000
 
-═══════════════════════════════════════════════════════════════════════════════
-
-⚠️  IMPORTANT BEFORE INSTALLING:
-
-1. Ensure you have sudo access:
-   $ sudo whoami  # Should return "root"
-
-2. Check available disk space:
-   $ df -h  # Need at least 5GB free
-
-3. Check internet connection:
-   $ ping google.com
-
-4. Optional: Prepare to copy application files
-   You'll need to transfer inventory-app/ folder to the VM
-   (Scripts will prompt you when ready)
+5. Create account and enjoy! 🎉
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-📁 TRANSFER APPLICATION TO VM:
+🎯 THE ONE COMMAND EXPLAINED:
 
-Your inventory-app folder needs to be copied to /opt/inventory-app
+curl -fsSL https://raw.githubusercontent.com/pan07gaz94/proxmox_scripts/refs/heads/master/install-inventory.sh | sudo bash
 
-METHOD 1: SCP (Recommended)
-─────────────────────────────
-From your computer:
-$ scp -r ~/Downloads/inventory-app user@your-vm:/opt/
+What it does:
+  - curl = Download the script silently
+  - fsSL = Follow redirects, no progress bar
+  - https://... = GitHub raw URL to our script
+  - | sudo bash = Execute immediately with sudo
 
-METHOD 2: SFTP (WinSCP on Windows)
-──────────────────────────────────
-1. Download WinSCP
-2. Connect to your VM
-3. Drag & drop inventory-app to /opt/
-
-METHOD 3: Git
-─────────────
-$ cd ~
-$ git clone your-repo-url inventory-app
-$ cp -r inventory-app /opt/
+NO manual steps
+NO intermediate files
+NO downloading
+EVERYTHING AUTOMATIC!
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-🔐 WHAT GETS INSTALLED:
+✨ WHAT HAPPENS WHEN YOU RUN IT:
 
-1. NODE.JS v18 LTS
-   - JavaScript runtime for backend
-   - npm package manager
+The script automatically:
 
-2. MONGODB COMMUNITY EDITION
-   - Free database
-   - Auto-starts on boot
-   - Runs on port 27017
-
-3. INVENTORY MANAGEMENT SYSTEM
-   - Backend: Express.js on port 5000
-   - Frontend: React on port 3000
-   - Auto-starts on boot
-
-4. UFW FIREWALL
-   - Allows SSH (22)
-   - Allows Frontend (3000)
-   - Allows Backend (5000)
-   - Denies everything else
+1. Updates system packages
+2. Installs Node.js v18 LTS
+3. Installs MongoDB Community
+4. Downloads the complete app from GitHub
+5. Sets up environment (.env)
+6. Installs npm dependencies
+7. Builds the React frontend
+8. Creates systemd services (auto-start on reboot)
+9. Configures UFW firewall
+10. Starts all services
+11. Verifies everything works
+12. Shows you the access URL
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-✅ AFTER INSTALLATION:
+🌐 AFTER INSTALLATION:
 
-Your system will have:
+Open your browser:
+  http://your-vm-ip:3000
 
-✓ Node.js & npm running
-✓ MongoDB running on port 27017
-✓ Backend running on port 5000
-✓ Frontend running on port 3000
-✓ Both set to auto-start on reboot
-✓ Firewall configured
-✓ Services managed by systemd
+Create a new account and start using!
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-🌐 ACCESS YOUR APPLICATION:
+⏱️ TOTAL TIME: 15-20 MINUTES
 
-Find your VM IP:
-$ hostname -I
+From zero to production:
+  - System update: 2 min
+  - Node.js + MongoDB: 5 min
+  - npm install: 5 min
+  - Build + Services: 5 min
+  - Verification: 1 min
 
-Then open in browser:
-http://192.168.1.100:3000  (replace with your IP)
+═══════════════════════════════════════════════════════════════════════════════
+
+📊 WHAT GETS INSTALLED:
+
+✓ Node.js v18 LTS
+✓ MongoDB Community Edition
+✓ Inventory Management System
+  - Backend (Express.js, port 5000)
+  - Frontend (React, port 3000)
+  - Database (MongoDB, port 27017)
+✓ Systemd Services (auto-start)
+✓ UFW Firewall
+✓ All npm dependencies
+
+Location: /opt/inventory-app
 
 ═══════════════════════════════════════════════════════════════════════════════
 
 🔧 USEFUL COMMANDS AFTER INSTALLATION:
 
-View logs:
-$ sudo journalctl -u inventory-backend.service -f
+View backend logs:
+  sudo journalctl -u inventory-backend.service -f
+
+Restart backend:
+  sudo systemctl restart inventory-backend.service
 
 Stop backend:
-$ sudo systemctl stop inventory-backend.service
+  sudo systemctl stop inventory-backend.service
 
-Start backend:
-$ sudo systemctl start inventory-backend.service
+Check status:
+  sudo systemctl status inventory-backend.service
 
-Restart everything:
-$ sudo systemctl restart inventory-backend.service
-$ sudo systemctl restart inventory-frontend.service
-
-Check MongoDB:
-$ sudo systemctl status mongod
-
-Firewall status:
-$ sudo ufw status
+View installation info:
+  cat /opt/inventory-app/INSTALLATION_INFO.txt
 
 ═══════════════════════════════════════════════════════════════════════════════
 
 ❓ FAQ:
 
-Q: Can I run this on Debian 10?
-A: Recommended for Debian 11 or 12, but may work on 10
+Q: What if I get an error?
+A: Check the logs: sudo journalctl -u inventory-backend.service -f
 
-Q: How much disk space needed?
-A: At least 5GB free
+Q: How do I know it's working?
+A: Open http://your-vm-ip:3000 in your browser
 
-Q: How much RAM needed?
-A: 2GB minimum, 4GB+ recommended
+Q: Can I run it multiple times?
+A: Yes, it's safe to run multiple times
 
-Q: Will it survive reboot?
-A: Yes! Services auto-start after reboot
+Q: Where are the files?
+A: /opt/inventory-app
 
-Q: Can I access from another computer?
-A: Yes! Use the VM's IP address
+Q: Can I access from other computers?
+A: Yes, use your VM's IP address instead of localhost
 
-Q: What if installation fails?
-A: Check logs with: sudo journalctl -u inventory-backend.service -f
+Q: What's the login?
+A: Create a new account on first access
+
+Q: How do I backup the database?
+A: MongoDB data is in /var/lib/mongodb
 
 Q: How do I uninstall?
-A: Remove services and /opt/inventory-app folder
-
-Q: Can I use MongoDB Atlas instead?
-A: Yes! Update MONGODB_URI in .env
-
-═══════════════════════════════════════════════════════════════════════════════
-
-📞 TROUBLESHOOTING:
-
-Most common issues:
-
-1. "Port 5000 already in use"
-   → Change PORT in .env to 5001
-
-2. "Cannot connect to MongoDB"
-   → Restart MongoDB: sudo systemctl restart mongod
-
-3. "Frontend not loading"
-   → Check: sudo systemctl status inventory-frontend.service
-
-4. "Permission denied"
-   → Fix: sudo chown -R root:root /opt/inventory-app
-
-More help: See DEBIAN_VM_README.md
+A: Remove /opt/inventory-app and disable services:
+   sudo rm -rf /opt/inventory-app
+   sudo systemctl disable inventory-backend.service
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-🎉 READY TO START?
+🎉 THAT'S ALL YOU NEED!
 
-Next steps:
+Just run:
 
-1. READ: DEBIAN_VM_README.md (takes 10 minutes)
-2. COPY: Files to your Debian VM
-3. RUN: bash INSTALL_ALL.sh
-4. WAIT: 10-15 minutes
-5. ACCESS: http://your-vm-ip:3000
-6. CREATE: First account
-7. ENJOY: Your new system!
+curl -fsSL https://raw.githubusercontent.com/pan07gaz94/proxmox_scripts/refs/heads/master/install-inventory.sh | sudo bash
 
-═══════════════════════════════════════════════════════════════════════════════
+Wait 15-20 minutes.
 
-Need help? Everything is documented:
+Open http://your-vm-ip:3000.
 
-📖 DEBIAN_VM_README.md         ← Start here!
-📖 QUICK_REFERENCE.txt          ← Quick commands
-📖 DEBIAN_MANUAL_COMMANDS.txt   ← Detailed steps
-📖 inventory-app/README.md      ← App documentation
+Enjoy! 🚀
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-Created with ❤️ for Proxmox users
+GitHub Repository:
+  https://github.com/pan07gaz94/proxmox_scripts
 
-Version: 1.0.0 | Status: Production-Ready ✅
+Version: 1.0.0
+Status: Production-Ready ✅
+
+═══════════════════════════════════════════════════════════════════════════════
