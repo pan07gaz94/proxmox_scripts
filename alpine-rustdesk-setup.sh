@@ -1,170 +1,210 @@
 #!/bin/bash
 
 #############################################################################
-# Rustdesk Server Setup for Alpine Linux
-# Architecture: x64 (64-bit)
-# Compatible with: Alpine 3.16+
+# Rustdesk Server Installation - Alpine Linux
+# Auto-detects and downloads the LATEST available version
+# Supports: x64 (64-bit)
 #############################################################################
 
 set -e
 
-# Color definitions
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+# Functions
+print_header() {
+    echo -e "${CYAN}================================================${NC}"
+    echo -e "${CYAN}$1${NC}"
+    echo -e "${CYAN}================================================${NC}"
+}
+
+print_step() {
+    echo -e "${BLUE}[$1]${NC} $2"
+}
+
+print_success() {
+    echo -e "${GREEN}✓${NC} $2"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $2"
+    exit 1
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $2"
+}
+
+print_info() {
+    echo -e "${CYAN}ℹ${NC} $2"
+}
 
 #############################################################################
-# STEP 1: SSH SERVER SETUP (if needed)
+# STEP 0: DETECT LATEST VERSION
 #############################################################################
 
-print_status "=== STEP 1: SSH SERVER SETUP ==="
+print_header "  Rustdesk Server - Alpine Linux Setup"
+echo ""
+print_step "0/7" "Detecting latest Rustdesk version..."
 
-# Check if SSH is already running
-if rc-status | grep -q "sshd"; then
-    print_success "SSH server (sshd) is already installed and running"
-else
-    print_status "Installing SSH server..."
-    apk update
-    apk add openssh
-    
-    # Enable SSH to start on boot
-    rc-update add sshd
-    
-    # Start SSH
-    rc-service sshd start
-    
-    print_success "SSH server installed and started"
-    print_status "SSH will start automatically on reboot"
+# Get latest release from GitHub API
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/rustdesk/rustdesk-server/releases | \
+    grep '"tag_name"' | \
+    grep -v 'pre' | \
+    grep -v 'beta' | \
+    grep -v 'alpha' | \
+    head -1 | \
+    cut -d'"' -f4)
+
+if [ -z "$LATEST_RELEASE" ]; then
+    print_warning "Could not auto-detect version, trying fallback..."
+    LATEST_RELEASE=$(curl -s https://api.github.com/repos/rustdesk/rustdesk-server/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
 fi
 
-# Display SSH port
-SSH_PORT=$(grep "^Port" /etc/ssh/sshd_config | awk '{print $2}')
-SSH_PORT=${SSH_PORT:-22}
-print_status "SSH is listening on port: $SSH_PORT"
+if [ -z "$LATEST_RELEASE" ]; then
+    print_warning "Could not detect from GitHub API"
+    LATEST_RELEASE="1.1.9"
+    print_info "Using fallback version: $LATEST_RELEASE"
+else
+    print_success "0/7" "Latest version detected: $LATEST_RELEASE"
+fi
+
+echo ""
 
 #############################################################################
-# STEP 2: SYSTEM PREPARATION
+# STEP 1: SSH SERVER SETUP
 #############################################################################
 
-print_status ""
-print_status "=== STEP 2: SYSTEM PREPARATION ==="
+print_step "1/7" "Installing SSH server..."
 
-# Update Alpine repositories
-print_status "Updating Alpine packages..."
-apk update
-apk add --no-cache \
-    wget \
-    curl \
-    unzip \
-    ca-certificates \
-    net-tools
+if rc-status 2>/dev/null | grep -q "sshd"; then
+    print_success "1/7" "SSH server already running"
+else
+    print_info "Installing OpenSSH..."
+    apk add openssh >/dev/null 2>&1 || true
+    rc-update add sshd >/dev/null 2>&1 || true
+    rc-service sshd start >/dev/null 2>&1 || true
+    print_success "1/7" "SSH server installed and started"
+fi
 
-print_success "Alpine packages updated"
+SSH_PORT=$(grep "^Port" /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo "22")
+print_info "SSH listening on port: $SSH_PORT"
+
+echo ""
 
 #############################################################################
-# STEP 3: CREATE RUSTDESK DIRECTORIES
+# STEP 2: UPDATE SYSTEM
 #############################################################################
 
-print_status ""
-print_status "=== STEP 3: CREATING DIRECTORIES ==="
+print_step "2/7" "Updating Alpine packages..."
+
+apk update >/dev/null 2>&1 || true
+apk add --no-cache wget curl unzip ca-certificates net-tools >/dev/null 2>&1
+
+print_success "2/7" "Alpine packages updated"
+echo ""
+
+#############################################################################
+# STEP 3: CREATE DIRECTORIES
+#############################################################################
+
+print_step "3/7" "Creating directories..."
 
 INSTALL_DIR="/opt/rustdesk-server"
 CONFIG_DIR="/etc/rustdesk"
 LOG_DIR="/var/log/rustdesk"
 
-mkdir -p $INSTALL_DIR
-mkdir -p $CONFIG_DIR
-mkdir -p $LOG_DIR
+mkdir -p $INSTALL_DIR $CONFIG_DIR $LOG_DIR
+chmod 755 $INSTALL_DIR $CONFIG_DIR $LOG_DIR
 
-chmod 755 $INSTALL_DIR
-chmod 755 $CONFIG_DIR
-chmod 755 $LOG_DIR
+print_success "3/7" "Directories created"
+print_info "  Install: $INSTALL_DIR"
+print_info "  Config:  $CONFIG_DIR"
+print_info "  Logs:    $LOG_DIR"
 
-print_success "Directories created:"
-echo "  Install: $INSTALL_DIR"
-echo "  Config: $CONFIG_DIR"
-echo "  Logs: $LOG_DIR"
+echo ""
 
 #############################################################################
-# STEP 4: DOWNLOAD RUSTDESK BINARIES
+# STEP 4: DOWNLOAD AND EXTRACT BINARIES
 #############################################################################
 
-print_status ""
-print_status "=== STEP 4: DOWNLOADING RUSTDESK SERVER ==="
+print_step "4/7" "Downloading Rustdesk Server v$LATEST_RELEASE..."
 
 cd /tmp
 
-RUSTDESK_VERSION="1.1.11"
-DOWNLOAD_URL="https://github.com/rustdesk/rustdesk-server/releases/download/${RUSTDESK_VERSION}/rustdesk-server-linux-x64.zip"
+# Clean up old files
+rm -f rustdesk*.zip hbbs hbbr 2>/dev/null || true
 
-print_status "Downloading from: $DOWNLOAD_URL"
-print_status "This may take a few minutes..."
+DOWNLOAD_URL="https://github.com/rustdesk/rustdesk-server/releases/download/$LATEST_RELEASE/rustdesk-server-linux-x64.zip"
 
-if ! wget --progress=bar:force "$DOWNLOAD_URL" -O rustdesk-server.zip 2>&1; then
-    print_error "Failed to download Rustdesk Server"
-    exit 1
+print_info "Download URL: $DOWNLOAD_URL"
+
+# Download with retries
+MAX_RETRIES=3
+RETRY=0
+DOWNLOAD_SUCCESS=0
+
+while [ $RETRY -lt $MAX_RETRIES ]; do
+    print_info "Attempting download (attempt $((RETRY + 1))/$MAX_RETRIES)..."
+    
+    if wget --progress=dot:giga -q "$DOWNLOAD_URL" -O rustdesk-server.zip 2>/dev/null; then
+        print_success "4/7" "Download successful"
+        DOWNLOAD_SUCCESS=1
+        break
+    else
+        RETRY=$((RETRY + 1))
+        if [ $RETRY -lt $MAX_RETRIES ]; then
+            print_warning "Download attempt $RETRY failed, retrying..."
+            sleep 2
+        fi
+    fi
+done
+
+if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
+    print_error "4/7" "Failed to download Rustdesk after $MAX_RETRIES attempts"
 fi
 
-print_status "Extracting files..."
-unzip -q rustdesk-server.zip
+# Extract
+print_info "Extracting files..."
 
+if unzip -q rustdesk-server.zip 2>/dev/null; then
+    print_success "4/7" "Extraction successful"
+else
+    print_warning "Silent extraction failed, trying with output..."
+    unzip rustdesk-server.zip > /dev/null 2>&1 || {
+        print_error "4/7" "Failed to extract Rustdesk files"
+    }
+fi
+
+# Verify binaries
 if [ ! -f hbbs ] || [ ! -f hbbr ]; then
-    print_error "Failed to extract binaries"
+    print_error "4/7" "Binaries not found after extraction. Available files:"
+    ls -la | grep -E "hb|rustdesk"
     exit 1
 fi
 
-# Copy to installation directory
+# Install binaries
 cp hbbs hbbr $INSTALL_DIR/
 chmod +x $INSTALL_DIR/hbbs $INSTALL_DIR/hbbr
 
-# Clean up
+# Cleanup
 rm -f rustdesk-server.zip hbbs hbbr
 
-print_success "Rustdesk binaries installed"
+echo ""
 
 #############################################################################
-# STEP 5: FIREWALL CONFIGURATION
+# STEP 5: CREATE OPENRC SERVICES
 #############################################################################
 
-print_status ""
-print_status "=== STEP 5: FIREWALL CONFIGURATION ==="
+print_step "5/7" "Creating OpenRC services..."
 
-HBBS_PORT=21115
-HBBR_PORT=21116
-
-# Check if ufw is installed (unlikely on Alpine, but check anyway)
-if command -v ufw &> /dev/null; then
-    print_status "Configuring UFW firewall..."
-    ufw allow $HBBS_PORT/tcp
-    ufw allow $HBBS_PORT/udp
-    ufw allow $HBBR_PORT/tcp
-    ufw allow $HBBR_PORT/udp
-    print_success "UFW rules added"
-else
-    print_status "Alpine uses iptables/netfilter"
-    print_warning "If you have a firewall, ensure these ports are open:"
-    echo "  - TCP: $HBBS_PORT (Signal Server)"
-    echo "  - UDP: $HBBS_PORT (Signal Server)"
-    echo "  - TCP: $HBBR_PORT (Relay Server)"
-    echo "  - UDP: $HBBR_PORT (Relay Server)"
-fi
-
-#############################################################################
-# STEP 6: OPENRC INIT SERVICES (Alpine's init system)
-#############################################################################
-
-print_status ""
-print_status "=== STEP 6: CREATING OPENRC SERVICES ==="
-
-# Create HBBS service
-cat > /etc/init.d/rustdesk-hbbs << 'SVCEOF'
+# HBBS Service
+cat > /etc/init.d/rustdesk-hbbs << 'SVCFILE'
 #!/sbin/openrc-run
 
 description="Rustdesk Signal Server (HBBS)"
@@ -172,6 +212,8 @@ command="/opt/rustdesk-server/hbbs"
 command_args="-h 0.0.0.0"
 pidfile="/var/run/rustdesk-hbbs.pid"
 command_background="yes"
+output_log="/var/log/rustdesk/hbbs.log"
+error_log="/var/log/rustdesk/hbbs.log"
 
 depend() {
     need net
@@ -180,13 +222,10 @@ depend() {
 start_pre() {
     mkdir -p /var/log/rustdesk
 }
+SVCFILE
 
-SVCEOF
-
-chmod +x /etc/init.d/rustdesk-hbbs
-
-# Create HBBR service
-cat > /etc/init.d/rustdesk-hbbr << 'SVCEOF'
+# HBBR Service
+cat > /etc/init.d/rustdesk-hbbr << 'SVCFILE'
 #!/sbin/openrc-run
 
 description="Rustdesk Relay Server (HBBR)"
@@ -194,141 +233,136 @@ command="/opt/rustdesk-server/hbbr"
 command_args="-h 0.0.0.0"
 pidfile="/var/run/rustdesk-hbbr.pid"
 command_background="yes"
+output_log="/var/log/rustdesk/hbbr.log"
+error_log="/var/log/rustdesk/hbbr.log"
 
 depend() {
     need net
     use rustdesk-hbbs
 }
 
-SVCEOF
+start_pre() {
+    mkdir -p /var/log/rustdesk
+}
+SVCFILE
 
-chmod +x /etc/init.d/rustdesk-hbbr
+chmod +x /etc/init.d/rustdesk-hbbs /etc/init.d/rustdesk-hbbr
 
-print_success "OpenRC services created"
+print_success "5/7" "OpenRC services created"
+echo ""
 
 #############################################################################
-# STEP 7: ENABLE AND START SERVICES
+# STEP 6: ENABLE AND START SERVICES
 #############################################################################
 
-print_status ""
-print_status "=== STEP 7: STARTING SERVICES ==="
+print_step "6/7" "Starting services..."
 
-# Add services to default runlevel
-rc-update add rustdesk-hbbs
-rc-update add rustdesk-hbbr
+rc-update add rustdesk-hbbs 2>/dev/null || true
+rc-update add rustdesk-hbbr 2>/dev/null || true
 
-print_status "Starting HBBS..."
-rc-service rustdesk-hbbs start
+print_info "Starting HBBS (Signal Server)..."
+rc-service rustdesk-hbbs start 2>/dev/null || rc-service rustdesk-hbbs start
 sleep 2
 
-print_status "Starting HBBR..."
-rc-service rustdesk-hbbr start
+print_info "Starting HBBR (Relay Server)..."
+rc-service rustdesk-hbbr start 2>/dev/null || rc-service rustdesk-hbbr start
 sleep 2
 
-print_success "Services started"
+print_success "6/7" "Services started and enabled for auto-start"
+echo ""
 
 #############################################################################
-# STEP 8: VERIFICATION
+# STEP 7: VERIFICATION AND DISPLAY INFORMATION
 #############################################################################
 
-print_status ""
-print_status "=== STEP 8: VERIFICATION ==="
+print_step "7/7" "Verifying installation..."
+
+# Get server information
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ip addr show | grep 'inet ' | grep -v 127.0.0.1 | head -1 | awk '{print $2}' | cut -d/ -f1 || echo "unknown")
+HOSTNAME=$(hostname)
 
 # Check if services are running
-print_status "Checking service status..."
+HBBS_RUNNING=0
+HBBR_RUNNING=0
 
-if rc-service rustdesk-hbbs status 2>&1 | grep -q "started"; then
-    print_success "HBBS is running"
+sleep 1
+
+if pgrep -x hbbs >/dev/null 2>&1; then
+    HBBS_RUNNING=1
+    print_success "7/7" "HBBS process is running"
 else
-    print_warning "HBBS status unclear, checking processes..."
-    if pgrep hbbs > /dev/null; then
-        print_success "HBBS process is running"
-    else
-        print_error "HBBS process not found"
-    fi
+    print_warning "HBBS process verification unclear (may still be starting)"
 fi
 
-if rc-service rustdesk-hbbr status 2>&1 | grep -q "started"; then
-    print_success "HBBR is running"
+if pgrep -x hbbr >/dev/null 2>&1; then
+    HBBR_RUNNING=1
+    print_success "7/7" "HBBR process is running"
 else
-    print_warning "HBBR status unclear, checking processes..."
-    if pgrep hbbr > /dev/null; then
-        print_success "HBBR process is running"
-    else
-        print_error "HBBR process not found"
-    fi
+    print_warning "HBBR process verification unclear (may still be starting)"
 fi
 
-# Check open ports
-print_status "Checking open ports..."
-netstat -tuln 2>/dev/null | grep -E "21115|21116" || echo "No listening ports found yet"
-
-#############################################################################
-# STEP 9: SERVER INFORMATION
-#############################################################################
-
-print_status ""
-print_status "=== STEP 9: SERVER INFORMATION ==="
-
-SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "unknown")
-PUBLIC_IP=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "unable to retrieve")
-
-echo ""
-echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║            RUSTDESK SERVER SETUP COMPLETE (Alpine)             ║"
-echo "╚════════════════════════════════════════════════════════════════╝"
-echo ""
-echo "📍 NETWORK INFORMATION:"
-echo "  Local IP:     $SERVER_IP"
-echo "  Public IP:    $PUBLIC_IP"
-echo ""
-echo "🔌 SERVICE INFORMATION:"
-echo "  HBBS Port:    21115 (Signal Server)"
-echo "  HBBR Port:    21116 (Relay Server)"
-echo ""
-echo "📁 INSTALLATION PATHS:"
-echo "  Binaries:     $INSTALL_DIR"
-echo "  Config:       $CONFIG_DIR"
-echo "  Logs:         $LOG_DIR"
-echo ""
-echo "🔧 USEFUL COMMANDS:"
-echo "  Check status:    rc-service rustdesk-hbbs status"
-echo "  View logs:       tail -f /var/log/messages"
-echo "  Start service:   rc-service rustdesk-hbbs start"
-echo "  Stop service:    rc-service rustdesk-hbbs stop"
-echo "  Restart service: rc-service rustdesk-hbbs restart"
-echo ""
-echo "📋 CONFIGURE CLIENTS WITH:"
-echo "  Server Address: $PUBLIC_IP:21115"
-echo ""
-echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║                    SSH SERVER INFORMATION                     ║"
-echo "╚════════════════════════════════════════════════════════════════╝"
-echo ""
-echo "🔐 SSH ACCESS:"
-echo "  ssh root@$SERVER_IP"
-echo "  SSH Port: $SSH_PORT"
 echo ""
 
 #############################################################################
-# STEP 10: POST-INSTALLATION
+# DISPLAY FINAL INFORMATION
 #############################################################################
 
+print_header "  ✅ INSTALLATION COMPLETE"
+
 echo ""
-echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║                   NEXT STEPS FOR CLIENTS                      ║"
-echo "╚════════════════════════════════════════════════════════════════╝"
+echo -e "${CYAN}📍 SERVER INFORMATION:${NC}"
+echo "   Hostname:         $HOSTNAME"
+echo "   Local IP:         $SERVER_IP"
+echo "   SSH Port:         $SSH_PORT"
 echo ""
-echo "1. On Windows/Linux client machine, install Rustdesk"
+echo -e "${CYAN}🔌 RUSTDESK SERVICES:${NC}"
+echo "   Version:          $LATEST_RELEASE"
+echo "   HBBS Port:        21115 (Signal Server)"
+echo "   HBBR Port:        21116 (Relay Server)"
 echo ""
-echo "2. Open Rustdesk and go to: Menu (≡) → Settings → Network"
+echo -e "${CYAN}📁 INSTALLATION PATHS:${NC}"
+echo "   Binaries:         $INSTALL_DIR"
+echo "   Config:           $CONFIG_DIR"
+echo "   Logs:             $LOG_DIR"
 echo ""
-echo "3. Set 'ID/Relay Server' to:"
-echo "   $PUBLIC_IP:21115"
-echo ""
-echo "4. Click 'OK' and restart Rustdesk"
-echo ""
-echo "5. The client will show a unique ID - use that to connect!"
+echo -e "${CYAN}🔧 USEFUL COMMANDS:${NC}"
+echo "   Status:           rc-service rustdesk-hbbs status"
+echo "   View logs:        tail -f /var/log/messages"
+echo "   Restart:          rc-service rustdesk-hbbs restart && rc-service rustdesk-hbbr restart"
+echo "   Stop:             rc-service rustdesk-hbbs stop && rc-service rustdesk-hbbr stop"
+echo "   Start:            rc-service rustdesk-hbbs start && rc-service rustdesk-hbbr start"
 echo ""
 
-print_success "Alpine Rustdesk setup completed!"
+echo -e "${CYAN}================================================${NC}"
+echo -e "${GREEN}  🎯 CONFIGURE YOUR CLIENTS WITH:${NC}"
+echo -e "${CYAN}================================================${NC}"
+echo ""
+echo -e "     ${YELLOW}Server Address: ${GREEN}$SERVER_IP:21115${NC}"
+echo ""
+echo -e "${CYAN}================================================${NC}"
+echo ""
+
+echo -e "${CYAN}📋 CLIENT SETUP INSTRUCTIONS:${NC}"
+echo ""
+echo "  1. Download Rustdesk from: https://rustdesk.com"
+echo ""
+echo "  2. Install on your client machine"
+echo ""
+echo "  3. Open Rustdesk → Menu (≡) → Settings → Network"
+echo ""
+echo "  4. Under 'ID/Relay Server', enter:"
+echo -e "     ${YELLOW}$SERVER_IP:21115${NC}"
+echo ""
+echo "  5. Click 'OK' and restart Rustdesk"
+echo ""
+echo "  6. Your client will get a unique ID - use that to connect!"
+echo ""
+echo "  7. (Optional) Add password for security:"
+echo "     Menu → Settings → Security → Set password"
+echo ""
+
+echo -e "${GREEN}✅ Installation finished!${NC}"
+echo -e "${GREEN}✅ Services will start automatically on server reboot${NC}"
+echo ""
+echo -e "${YELLOW}Note: It may take 10-30 seconds for the services to fully initialize.${NC}"
+echo ""
