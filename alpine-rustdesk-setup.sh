@@ -2,8 +2,7 @@
 
 #############################################################################
 # Rustdesk Server Installation - Alpine Linux
-# Auto-detects and downloads the LATEST available version
-# Supports: x64 (64-bit)
+# Tries multiple versions until one downloads successfully
 #############################################################################
 
 set -e
@@ -16,7 +15,6 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Functions
 print_header() {
     echo -e "${CYAN}================================================${NC}"
     echo -e "${CYAN}$1${NC}"
@@ -45,41 +43,11 @@ print_info() {
 }
 
 #############################################################################
-# STEP 0: DETECT LATEST VERSION
+# STEP 1: SSH SERVER SETUP
 #############################################################################
 
 print_header "  Rustdesk Server - Alpine Linux Setup"
 echo ""
-print_step "0/7" "Detecting latest Rustdesk version..."
-
-# Get latest release from GitHub API
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/rustdesk/rustdesk-server/releases | \
-    grep '"tag_name"' | \
-    grep -v 'pre' | \
-    grep -v 'beta' | \
-    grep -v 'alpha' | \
-    head -1 | \
-    cut -d'"' -f4)
-
-if [ -z "$LATEST_RELEASE" ]; then
-    print_warning "Could not auto-detect version, trying fallback..."
-    LATEST_RELEASE=$(curl -s https://api.github.com/repos/rustdesk/rustdesk-server/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
-fi
-
-if [ -z "$LATEST_RELEASE" ]; then
-    print_warning "Could not detect from GitHub API"
-    LATEST_RELEASE="1.1.9"
-    print_info "Using fallback version: $LATEST_RELEASE"
-else
-    print_success "0/7" "Latest version detected: $LATEST_RELEASE"
-fi
-
-echo ""
-
-#############################################################################
-# STEP 1: SSH SERVER SETUP
-#############################################################################
-
 print_step "1/7" "Installing SSH server..."
 
 if rc-status 2>/dev/null | grep -q "sshd"; then
@@ -123,9 +91,6 @@ mkdir -p $INSTALL_DIR $CONFIG_DIR $LOG_DIR
 chmod 755 $INSTALL_DIR $CONFIG_DIR $LOG_DIR
 
 print_success "3/7" "Directories created"
-print_info "  Install: $INSTALL_DIR"
-print_info "  Config:  $CONFIG_DIR"
-print_info "  Logs:    $LOG_DIR"
 
 echo ""
 
@@ -133,40 +98,38 @@ echo ""
 # STEP 4: DOWNLOAD AND EXTRACT BINARIES
 #############################################################################
 
-print_step "4/7" "Downloading Rustdesk Server v$LATEST_RELEASE..."
+print_step "4/7" "Finding and downloading Rustdesk Server..."
 
 cd /tmp
 
 # Clean up old files
 rm -f rustdesk*.zip hbbs hbbr 2>/dev/null || true
 
-DOWNLOAD_URL="https://github.com/rustdesk/rustdesk-server/releases/download/$LATEST_RELEASE/rustdesk-server-linux-x64.zip"
+# List of versions to try (newest first)
+VERSIONS=("1.1.10" "1.1.9" "1.1.8" "1.1.7" "1.1.6" "1.1.5")
 
-print_info "Download URL: $DOWNLOAD_URL"
-
-# Download with retries
-MAX_RETRIES=3
-RETRY=0
 DOWNLOAD_SUCCESS=0
+USED_VERSION=""
 
-while [ $RETRY -lt $MAX_RETRIES ]; do
-    print_info "Attempting download (attempt $((RETRY + 1))/$MAX_RETRIES)..."
+for VERSION in "${VERSIONS[@]}"; do
+    print_info "Trying version $VERSION..."
     
-    if wget --progress=dot:giga -q "$DOWNLOAD_URL" -O rustdesk-server.zip 2>/dev/null; then
-        print_success "4/7" "Download successful"
+    DOWNLOAD_URL="https://github.com/rustdesk/rustdesk-server/releases/download/$VERSION/rustdesk-server-linux-x64.zip"
+    
+    if wget -q --timeout=10 "$DOWNLOAD_URL" -O rustdesk-server.zip 2>/dev/null; then
+        print_success "4/7" "Downloaded version $VERSION"
         DOWNLOAD_SUCCESS=1
+        USED_VERSION=$VERSION
         break
     else
-        RETRY=$((RETRY + 1))
-        if [ $RETRY -lt $MAX_RETRIES ]; then
-            print_warning "Download attempt $RETRY failed, retrying..."
-            sleep 2
-        fi
+        print_warning "Version $VERSION not available, trying next..."
+        rm -f rustdesk-server.zip 2>/dev/null || true
+        sleep 1
     fi
 done
 
 if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
-    print_error "4/7" "Failed to download Rustdesk after $MAX_RETRIES attempts"
+    print_error "4/7" "Failed to download any version. Tried: ${VERSIONS[@]}"
 fi
 
 # Extract
@@ -175,7 +138,7 @@ print_info "Extracting files..."
 if unzip -q rustdesk-server.zip 2>/dev/null; then
     print_success "4/7" "Extraction successful"
 else
-    print_warning "Silent extraction failed, trying with output..."
+    print_warning "Silent extraction failed, trying verbose..."
     unzip rustdesk-server.zip > /dev/null 2>&1 || {
         print_error "4/7" "Failed to extract Rustdesk files"
     }
@@ -183,9 +146,7 @@ fi
 
 # Verify binaries
 if [ ! -f hbbs ] || [ ! -f hbbr ]; then
-    print_error "4/7" "Binaries not found after extraction. Available files:"
-    ls -la | grep -E "hb|rustdesk"
-    exit 1
+    print_error "4/7" "Binaries not found after extraction"
 fi
 
 # Install binaries
@@ -212,8 +173,6 @@ command="/opt/rustdesk-server/hbbs"
 command_args="-h 0.0.0.0"
 pidfile="/var/run/rustdesk-hbbs.pid"
 command_background="yes"
-output_log="/var/log/rustdesk/hbbs.log"
-error_log="/var/log/rustdesk/hbbs.log"
 
 depend() {
     need net
@@ -233,8 +192,6 @@ command="/opt/rustdesk-server/hbbr"
 command_args="-h 0.0.0.0"
 pidfile="/var/run/rustdesk-hbbr.pid"
 command_background="yes"
-output_log="/var/log/rustdesk/hbbr.log"
-error_log="/var/log/rustdesk/hbbr.log"
 
 depend() {
     need net
@@ -278,27 +235,21 @@ echo ""
 print_step "7/7" "Verifying installation..."
 
 # Get server information
-SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ip addr show | grep 'inet ' | grep -v 127.0.0.1 | head -1 | awk '{print $2}' | cut -d/ -f1 || echo "unknown")
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "unknown")
 HOSTNAME=$(hostname)
-
-# Check if services are running
-HBBS_RUNNING=0
-HBBR_RUNNING=0
 
 sleep 1
 
 if pgrep -x hbbs >/dev/null 2>&1; then
-    HBBS_RUNNING=1
     print_success "7/7" "HBBS process is running"
 else
-    print_warning "HBBS process verification unclear (may still be starting)"
+    print_warning "HBBS process not found yet (may still be starting)"
 fi
 
 if pgrep -x hbbr >/dev/null 2>&1; then
-    HBBR_RUNNING=1
     print_success "7/7" "HBBR process is running"
 else
-    print_warning "HBBR process verification unclear (may still be starting)"
+    print_warning "HBBR process not found yet (may still be starting)"
 fi
 
 echo ""
@@ -316,7 +267,7 @@ echo "   Local IP:         $SERVER_IP"
 echo "   SSH Port:         $SSH_PORT"
 echo ""
 echo -e "${CYAN}🔌 RUSTDESK SERVICES:${NC}"
-echo "   Version:          $LATEST_RELEASE"
+echo "   Version:          $USED_VERSION"
 echo "   HBBS Port:        21115 (Signal Server)"
 echo "   HBBR Port:        21116 (Relay Server)"
 echo ""
@@ -357,12 +308,9 @@ echo "  5. Click 'OK' and restart Rustdesk"
 echo ""
 echo "  6. Your client will get a unique ID - use that to connect!"
 echo ""
-echo "  7. (Optional) Add password for security:"
-echo "     Menu → Settings → Security → Set password"
-echo ""
 
 echo -e "${GREEN}✅ Installation finished!${NC}"
 echo -e "${GREEN}✅ Services will start automatically on server reboot${NC}"
 echo ""
-echo -e "${YELLOW}Note: It may take 10-30 seconds for the services to fully initialize.${NC}"
+echo -e "${YELLOW}Note: It may take 10-30 seconds for services to fully initialize.${NC}"
 echo ""
